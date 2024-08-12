@@ -10,6 +10,7 @@ format: html
 library(tidyverse)
 library(tidymodels)
 library(arrow)
+library(vetiver)
 set.seed(123)
 
 path <- here::here("data", "housing.parquet")
@@ -29,7 +30,7 @@ housing_fit <-
     ) |>
   fit(data = housing_train)
 
-v <- vetiver_model(___, ___)
+v <- vetiver_model(model = housing_fit, model_name = "bensoltoff/seattle-housing-rf")
 v
 ```
 
@@ -42,9 +43,11 @@ See `docker-rstats.qmd` in this same folder if you want to work along with the D
 Compute metrics for your model:
 
 ```{r}
+multi_metric <- metric_set(rmse, mae, mape)
+
 housing_metrics <-
-    augment(housing_fit, new_data = ___) |>
-    metrics(truth = price, estimate = .pred)
+    augment(housing_fit, new_data = housing_test) |>
+    multi_metric(truth = price, estimate = .pred)
 
 housing_metrics
 ```
@@ -54,9 +57,9 @@ Store these metrics as vetiver metadata:
 ```{r}
 library(vetiver)
 v <- vetiver_model(
-  ___, 
-  ___, 
-  metadata = list(metrics = ___)
+  model = housing_fit,
+  model_name = "bensoltoff/seattle-housing-rf",
+  metadata = list(metrics = housing_metrics)
 )
 ```
 
@@ -64,16 +67,15 @@ Write a new version of your pin:
 
 ```{r}
 library(pins)
-board <- ___
-board |> ___
+board <- board_connect(auth = "envvar", server = "https://pub.vetiver.posit.team/")
+board |> vetiver_pin_write(v)
 ```
 
 Get your metrics metadata:
 
 ```{r}
-extracted_metrics <- 
-  board |> 
-  pin_meta(___) |> 
+extracted_metrics <- board |> 
+  pin_meta("bensoltoff/seattle-housing-rf") |> 
   pluck("user", "metrics") |> 
   as_tibble()
 
@@ -83,9 +85,13 @@ extracted_metrics
 If you have time, redeploy your model and then get **your neighbor's** metrics metadata by calling the `/metadata` endpoint of their model:
 
 ```{r}
-url <- ___
+vetiver_deploy_rsconnect(board, name = "bensoltoff/seattle-housing-rf", server = "pub.vetiver.posit.team")
+```
+
+```{r}
+url <- "https://pub.vetiver.posit.team/ca_seattle_housing_model/metadata"
 r <- httr::content(httr::GET(url), as = "text", encoding = "UTF-8")
-jsonlite::fromJSON(___) |> 
+jsonlite::fromJSON(r) |> 
   pluck("user", "metrics") |> 
   as_tibble()
 ```
@@ -95,7 +101,7 @@ jsonlite::fromJSON(___) |>
 Write a `plumber.R` file:
 
 ```{r}
-vetiver_write_plumber(board, ___)
+vetiver_write_plumber(board, "bensoltoff/seattle-housing-rf", file = here::here("class-work/new-endpoint/plumber.R"))
 ```
 
 Open the file and run it locally; use the "Run API" button in RStudio.
