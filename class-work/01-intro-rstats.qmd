@@ -24,6 +24,35 @@ housing |>
 
 ```{r}
 ## more EDA here
+housing |>
+  ggplot(mapping = aes(x = date, y = price)) +
+  # geom_point() +
+  geom_smooth()
+
+ggplot(data = housing, mapping = aes(x = waterfront, y = price)) +
+  geom_boxplot()
+
+# log-log regression for sqft living and price
+ggplot(data = housing, mapping = aes(x = sqft_living, y = price)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "lm") +
+  scale_x_log10() +
+  scale_y_log10()
+
+ggplot(data = housing, mapping = aes(x = yr_built, y = price)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth() +
+  # scale_x_continuous(breaks = seq(1900, 2020, 10)) +
+  scale_y_log10()
+
+ggplot(data = housing, mapping = aes(x = as.factor(bedrooms))) +
+  geom_bar()
+
+ggplot(data = housing, mapping = aes(x = bathrooms)) +
+  geom_bar()
+
+ggplot(data = housing, mapping = aes(x = sqft_living)) +
+  geom_histogram(bins = 50, color = "white")
 ```
 
 ## Build a model 🔧
@@ -55,12 +84,14 @@ housing_fit <-
 
 ```{r}
 library(vetiver)
-v <- vetiver_model(___, ___)
+v <- vetiver_model(housing_fit, "seattle-house-tree")
 v
 ```
 
 ```{r}
 ## create a vetiver model with a custom description
+v <- vetiver_model(housing_fit, "seattle-house-tree", description = "A decision tree model for (logged) Seattle house prices")
+v
 ```
 
 ## Version your model 📌
@@ -68,13 +99,13 @@ v
 ```{r}
 library(pins)
 
-board <- ___
-board |> ___(v)
+board <- board_temp()
+board |> vetiver_pin_write(v)
 ```
 
 ```{r}
 ## retrieve your model metadata
-board |> pin_meta(___)
+board |> pin_meta("seattle-house-tree")
 ```
 
 ## Publish your model on Posit Connect 🚀
@@ -82,9 +113,13 @@ board |> pin_meta(___)
 Set up publishing to Connect from RStudio: <https://docs.posit.co/connect/user/publishing/>
 
 ```{r}
+## create a vetiver model with a custom description
+v <- vetiver_model(housing_fit, "bensoltoff/seattle-house-tree", description = "A decision tree model for (logged) Seattle house prices")
+v
+
 ## now write your model pin to Posit Connect
-board <- ___
-board |> ___(v)
+board <- board_connect(auth = "envvar", server = "https://pub.vetiver.posit.team/")
+board |> vetiver_pin_write(v)
 ```
 
 Visit your pin's homepage on Connect.
@@ -97,7 +132,7 @@ Train your model with a new algorithm:
 housing_fit <-
   workflow(
     price ~ bedrooms + bathrooms + sqft_living + yr_built,
-    ___
+    linear_reg()
   ) |>
   fit(data = housing_train)
 ```
@@ -105,12 +140,15 @@ housing_fit <-
 Store this new model as a new version of the same pin:
 
 ```{r}
-v <- vetiver_model(___, ___)
-board |> ___(v)
+v <- vetiver_model(housing_fit, "bensoltoff/seattle-house-tree", description = "A decision tree model for (logged) Seattle house prices")
+v
+
+## now write your model pin to Posit Connect
+board |> vetiver_pin_write(v)
 ```
 
 What versions do you have?
 
 ```{r}
-board |> pin_versions(___)
+board |> pin_versions("bensoltoff/seattle-house-tree")
 ```
